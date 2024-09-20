@@ -7,11 +7,11 @@ sudo docker run -d --name cosmos-emulator -p 8081:8081 -p 10250-10254:10250-1025
 Isso vai fazer ele rodar na sua porta 8081, no entanto, é preciso instalar o certificado para conseguir de comunicar com ele através de ssl.
 Para isso, dois passos:
 1) Salve o certificado na pasta raiz do usuário:
-rodar no bash curl --insecure https://localhost:8081/_explorer/emulator.pem > ~/emulatorcert.crt
+rodar no bash `curl --insecure https://localhost:8081/_explorer/emulator.pem > ~/emulatorcert.crt`
 2) Para linux, copiar este certificado para pasta de cacerts:
-rodar no bash sudo cp ~/emulatorcert.crt /usr/local/share/ca-certificates/
+rodar no bash `sudo cp ~/emulatorcert.crt /usr/local/share/ca-certificates/`
 3) Para linux, fazer update no cacerts:
-rodar no bash sudo update-ca-certificates
+rodar no bash `sudo update-ca-certificates`
 
 Feito isso, agora o Container com o Cosmos Emulator já está funcionando e a máquina consegue acessar.
 O próximo passo é rodar a function. Abrir um console na pasta projeto da function.
