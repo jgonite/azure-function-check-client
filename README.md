@@ -1,8 +1,8 @@
 Primeira coisa, é necessário rodar a imagem do Docker Emulator localmente.
 Basta ter o Docker CLI na máquina. Se você não tiver a imagem, esse procedimento já vai baixá-la e adicioná-la ao seu repositório local.
-'''
+`
 sudo docker run -d --name cosmos-emulator -p 8081:8081 -p 10250-10254:10250-10254 -e AZURE_COSMOS_EMULATOR_PARTITION_COUNT=3 -e AZURE_COSMOS_EMULATOR_ENABLE_DATA_PERSISTENCE=true mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator
-'''
+`
 
 Isso vai fazer ele rodar na sua porta 8081, no entanto, é preciso instalar o certificado para conseguir de comunicar com ele através de ssl.
 Para isso, dois passos:
