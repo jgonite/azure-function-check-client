@@ -16,9 +16,16 @@ rodar no bash sudo update-ca-certificates
 Feito isso, agora o Container com o Cosmos Emulator já está funcionando e a máquina consegue acessar.
 O próximo passo é rodar a function. Abrir um console na pasta projeto da function.
 
-Para rodar o func, é necessário usar node > 7. Portanto:
-1) rodar no bash: nvm use 18.0.0;
-2) rodar no bash: func start
+Se você não possuir o `func` da Azure, será necessário instalar. É possível instalá-lo via node com o seguinte comando.
+```bash
+npm install -g azure-functions-core-tools
+```
+No entanto, são necessárias versões mais recentes do node/npm. É possível que necessite atualizar o node e utilizar o comando `nvm use` para mudar o seu terminal para a versão do node nova.
+
+Entrar na pasta do projeto e rodar:
+```bash
+func start
+```
 
 Isso vai deployar a function na porta localhost:7071
 
