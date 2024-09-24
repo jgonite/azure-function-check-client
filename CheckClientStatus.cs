@@ -11,6 +11,10 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using Microsoft.IdentityModel.Tokens;
+using System.Text.Json;
+using System.Text;
+using System.Security.Cryptography;
+
 
 public static class CheckClientStatus
 {
@@ -63,24 +67,41 @@ public static class CheckClientStatus
     }
 
     private static string GenerateJwtToken(Client client, string secret)
+{
+    var header = new
     {
-        var tokenHandler = new JwtSecurityTokenHandler();
-        var key = Encoding.ASCII.GetBytes(secret);
+        alg = "HS256",
+        typ = "JWT"
+    };
 
-        var tokenDescriptor = new SecurityTokenDescriptor
-        {
-            Subject = new ClaimsIdentity(new Claim[]
-            {
-                new Claim(ClaimTypes.Name, client.name),
-                new Claim("CPF", client.cpf),
-                new Claim(ClaimTypes.Email, client.mail)
-            }),
-            Expires = DateTime.UtcNow.AddHours(1), // Token expiration
-            SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
-        };
+    var payload = new
+    {
+        name = client.name,
+        cpf = client.cpf,
+        mail = client.mail,
+        exp = new DateTimeOffset(DateTime.UtcNow.AddHours(1)).ToUnixTimeSeconds() // Expiração do token
+    };
 
-        var token = tokenHandler.CreateToken(tokenDescriptor);
-        return tokenHandler.WriteToken(token);
+    var headerJson = JsonSerializer.Serialize(header);
+    var payloadJson = JsonSerializer.Serialize(payload);
+
+    var headerBase64 = Convert.ToBase64String(Encoding.UTF8.GetBytes(headerJson))
+        .TrimEnd('=').Replace('+', '-').Replace('/', '_');
+    var payloadBase64 = Convert.ToBase64String(Encoding.UTF8.GetBytes(payloadJson))
+        .TrimEnd('=').Replace('+', '-').Replace('/', '_');
+
+    var signature = CreateSignature(headerBase64, payloadBase64, secret);
+    return $"{headerBase64}.{payloadBase64}.{signature}";
+}
+
+    // Método auxiliar para criar a assinatura
+    private static string CreateSignature(string header, string payload, string secret)
+    {
+        var key = new HMACSHA256(Encoding.UTF8.GetBytes(secret));
+        var message = Encoding.UTF8.GetBytes($"{header}.{payload}");
+        var hash = key.ComputeHash(message);
+        return Convert.ToBase64String(hash)
+            .TrimEnd('=').Replace('+', '-').Replace('/', '_');
     }
 
 }
