@@ -67,32 +67,32 @@ public static class CheckClientStatus
     }
 
     private static string GenerateJwtToken(Client client, string secret)
-{
-    var header = new
     {
-        alg = "HS256",
-        typ = "JWT"
-    };
+        var header = new
+        {
+            alg = "HS256",
+            typ = "JWT"
+        };
 
-    var payload = new
-    {
-        name = client.name,
-        cpf = client.cpf,
-        mail = client.mail,
-        exp = new DateTimeOffset(DateTime.UtcNow.AddHours(1)).ToUnixTimeSeconds() // Expiração do token
-    };
+        var payload = new
+        {
+            name = client.name,
+            cpf = client.cpf,
+            mail = client.mail,
+            exp = new DateTimeOffset(DateTime.UtcNow.AddHours(1)).ToUnixTimeSeconds() // Expiração do token
+        };
 
-    var headerJson = JsonSerializer.Serialize(header);
-    var payloadJson = JsonSerializer.Serialize(payload);
+        var headerJson = JsonSerializer.Serialize(header);
+        var payloadJson = JsonSerializer.Serialize(payload);
 
-    var headerBase64 = Convert.ToBase64String(Encoding.UTF8.GetBytes(headerJson))
-        .TrimEnd('=').Replace('+', '-').Replace('/', '_');
-    var payloadBase64 = Convert.ToBase64String(Encoding.UTF8.GetBytes(payloadJson))
-        .TrimEnd('=').Replace('+', '-').Replace('/', '_');
+        var headerBase64 = Convert.ToBase64String(Encoding.UTF8.GetBytes(headerJson))
+            .TrimEnd('=').Replace('+', '-').Replace('/', '_');
+        var payloadBase64 = Convert.ToBase64String(Encoding.UTF8.GetBytes(payloadJson))
+            .TrimEnd('=').Replace('+', '-').Replace('/', '_');
 
-    var signature = CreateSignature(headerBase64, payloadBase64, secret);
-    return $"{headerBase64}.{payloadBase64}.{signature}";
-}
+        var signature = CreateSignature(headerBase64, payloadBase64, secret);
+        return $"{headerBase64}.{payloadBase64}.{signature}";
+    }
 
     // Método auxiliar para criar a assinatura
     private static string CreateSignature(string header, string payload, string secret)
