@@ -4,74 +4,88 @@ using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using System.Threading.Tasks;
-using Microsoft.Azure.Cosmos;
-using System.Linq;
+using MongoDB.Driver;
+using System;
+using MongoDB.Bson.Serialization.Attributes;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
+using Microsoft.IdentityModel.Tokens;
 
 public static class CheckClientStatus
 {
-    private static readonly string _cosmosEndpointUri = "https://localhost:8081/";
-    private static readonly string _cosmosPrimaryKey = "C2y6yDjf5/R+ob0N8A7Cgv30VRDJIWEHLM+4QDU5DE2nQ9nDuVTqobD4b8mGGyPMbIZnqyMsEcaGQy67XIw/Jw==";
-    private static readonly string _databaseId = "cosmicworks";
-    private static readonly string _containerId = "clients";
-
     [FunctionName("CheckClientStatus")]
     public static async Task<IActionResult> Run(
         [HttpTrigger(AuthorizationLevel.Function, "get", Route = null)] HttpRequest req,
         ILogger log)
     {
+        // Ler variáveis de ambiente
+        var mongoConnectionString = Environment.GetEnvironmentVariable("MONGO_CONNECTION_STRING");
+        var databaseId = Environment.GetEnvironmentVariable("MONGO_DATABASE_ID");
+        var collectionId = Environment.GetEnvironmentVariable("MONGO_COLLECTION_ID");
+        var jwtSecret = Environment.GetEnvironmentVariable("JWT_SECRET");
+
+        if (string.IsNullOrEmpty(mongoConnectionString) || string.IsNullOrEmpty(databaseId) || string.IsNullOrEmpty(collectionId))
+        {
+            log.LogError("Environment variables not set.");
+            return new StatusCodeResult(500); // Internal Server Error
+        }
+
         string cpf = req.Query["cpf"];
         if (string.IsNullOrEmpty(cpf))
         {
             return new BadRequestObjectResult("Please provide a valid CPF.");
         }
 
-        var cosmosClient = new CosmosClient(
-            accountEndpoint: _cosmosEndpointUri,
-            authKeyOrResourceToken: _cosmosPrimaryKey
-            );
+        // Conectar ao MongoDB
+        var client = new MongoClient(mongoConnectionString);
+        var database = client.GetDatabase(databaseId);
+        var collection = database.GetCollection<Client>(collectionId);
 
-        // Habilitar para ambiente produtivo:
-        /* 
-        var container = cosmosClient.GetContainer(_databaseId, _containerId);
-        */
+        // Consultar cliente pelo CPF
+        var filter = Builders<Client>.Filter.Eq("cpf", cpf);
+        var clientResult = await collection.Find(filter).FirstOrDefaultAsync();
+
         
-        // Habilitar para ambiente de testes:
-        ///*
-        Database database = await cosmosClient.CreateDatabaseIfNotExistsAsync(
-            id: "cosmicworks",
-            throughput: 400
-        );
-        Container container = await database.CreateContainerIfNotExistsAsync(
-            id: "clients",
-            partitionKeyPath: "/cpf"
-        );
-        //*/
-        
-        ///*
-        var aliosha = new{id = "1", cpf = "00413032965"};
-        await container.UpsertItemAsync(aliosha);
-        //*/
 
-        // Query to find client by CPF
-        var query = new QueryDefinition("SELECT * FROM clients WHERE clients.cpf = @cpf")
-            .WithParameter("@cpf", cpf);
-        var iterator = container.GetItemQueryIterator<Client>(query);
-        var clients = await iterator.ReadNextAsync();
-
-        // Check if client exists
-        if (clients.Count > 0)
+        // Verificar se o cliente existe
+        if (clientResult != null)
         {
+            var token = GenerateJwtToken(clientResult, jwtSecret);
             req.HttpContext.Response.Headers.Add("X-Active-User", "true");
-            return new OkObjectResult("Client is active.");
+            return new OkObjectResult(new { token });
         }
         else
         {
             req.HttpContext.Response.Headers.Add("X-Active-User", "false");
-            return new NotFoundObjectResult("Client not found.");
+            return new NotFoundObjectResult("Cliente não encontrado");
         }
     }
+
+    private static string GenerateJwtToken(Client client, string secret)
+    {
+        var tokenHandler = new JwtSecurityTokenHandler();
+        var key = Encoding.ASCII.GetBytes(secret);
+
+        var tokenDescriptor = new SecurityTokenDescriptor
+        {
+            Subject = new ClaimsIdentity(new Claim[]
+            {
+                new Claim(ClaimTypes.Name, client.name),
+                new Claim("CPF", client.cpf),
+                new Claim(ClaimTypes.Email, client.mail)
+            }),
+            Expires = DateTime.UtcNow.AddHours(1), // Token expiration
+            SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
+        };
+
+        var token = tokenHandler.CreateToken(tokenDescriptor);
+        return tokenHandler.WriteToken(token);
+    }
+
 }
 
+[BsonIgnoreExtraElements]
 public class Client
 {
     public string name { get; set; }
